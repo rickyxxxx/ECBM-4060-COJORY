@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline V2 Analysis Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for professional, clean look */
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        /* Custom bar chart styles */
+        .chart-bar {
+            transition: height 0.5s ease-out;
+            background-color: #3b82f6; /* Tailwind blue-500 */
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3b82f6', // A strong blue for focus
+                        secondary: '#10b981', // A green for positive metrics
+                        background: '#f8fafc', // Light slate background
+                    }
+                }
+            }
+        }
+
+        // --- MOCK DATA SIMULATING PIPELINE RESULTS ---
+        const mockData = {
+            totalSequences: 15423,
+            avgAlignmentScore: 1215.7,
+            scoreDistribution: [
+                { range: '1000 - 1100', count: 3200 },
+                { range: '1100 - 1200', count: 6500 },
+                { range: '1200 - 1300', count: 4800 },
+                { range: '1300+', count: 923 }
+            ],
+            topVariants: [
+                { uid: '01592.00050.00000', matches: 1530, score: 1242.0 },
+                { uid: '01538.00048.00000', matches: 1200, score: 1207.0 },
+                { uid: '01523.00049.00000', matches: 950, score: 1265.5 },
+                { uid: '01565.00053.00000', matches: 680, score: 1251.0 },
+                { uid: '01573.00050.00000', matches: 450, score: 1190.0 },
+            ]
+        };
+
+        // --- RENDERING FUNCTIONS ---
+
+        function renderStats() {
+            const statsContainer = document.getElementById('stats-container');
+            const statsHtml = `
+                <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                    <p class="text-sm font-medium text-gray-500">Total Processed Sequences</p>
+                    <p class="text-4xl font-bold text-primary mt-1">${mockData.totalSequences.toLocaleString()}</p>
+                    <p class="text-xs text-gray-400 mt-2">from last pipeline run (Part 4)</p>
+                </div>
+                <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                    <p class="text-sm font-medium text-gray-500">Avg. Alignment Score (Raw)</p>
+                    <p class="text-4xl font-bold text-secondary mt-1">${mockData.avgAlignmentScore.toFixed(2)}</p>
+                    <p class="text-xs text-gray-400 mt-2">Across all successfully aligned sequences</p>
+                </div>
+                <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                    <p class="text-sm font-medium text-gray-500">Highest Score Observed</p>
+                    <p class="text-4xl font-bold text-gray-800 mt-1">1265.5</p>
+                    <p class="text-xs text-gray-400 mt-2">Found in sequence 01523...</p>
+                </div>
+                <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                    <p class="text-sm font-medium text-gray-500">Unique Variants Matched</p>
+                    <p class="text-4xl font-bold text-gray-800 mt-1">${mockData.topVariants.length}+</p>
+                    <p class="text-xs text-gray-400 mt-2">Showing top 5 variant matches</p>
+                </div>
+            `;
+            statsContainer.innerHTML = statsHtml;
+        }
+
+        function renderScoreDistributionChart() {
+            const chartContainer = document.getElementById('score-chart');
+            const maxCount = Math.max(...mockData.scoreDistribution.map(d => d.count));
+
+            let chartHtml = `<div class="flex items-end h-64 space-x-4 p-4">`;
+
+            mockData.scoreDistribution.forEach(data => {
+                const heightPercentage = (data.count / maxCount) * 100;
+                chartHtml += `
+                    <div class="flex-1 flex flex-col justify-end items-center h-full">
+                        <div style="height: ${heightPercentage}%;" class="chart-bar w-full rounded-t-lg relative" title="Count: ${data.count.toLocaleString()}">
+                            <span class="absolute -top-6 text-xs font-semibold text-gray-700">${(data.count / 1000).toFixed(1)}K</span>
+                        </div>
+                        <p class="text-xs mt-2 text-gray-500">${data.range}</p>
+                    </div>
+                `;
+            });
+
+            chartHtml += `</div>`;
+            chartContainer.innerHTML = chartHtml;
+        }
+
+        function renderVariantTable() {
+            const tableBody = document.getElementById('variant-table-body');
+            let tableRows = '';
+
+            mockData.topVariants.forEach((v, index) => {
+                const badgeColor = index === 0 ? 'bg-primary' : 'bg-gray-400';
+                tableRows += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 text-sm font-medium text-gray-900">#${index + 1}</td>
+                        <td class="p-3 text-sm">
+                            <span class="px-3 py-1 text-white text-xs font-semibold rounded-full ${badgeColor}">${v.uid}</span>
+                        </td>
+                        <td class="p-3 text-sm text-gray-700">${v.matches.toLocaleString()}</td>
+                        <td class="p-3 text-sm text-gray-700">${v.score.toFixed(2)}</td>
+                        <td class="p-3 text-sm text-gray-700">Alignment successful</td>
+                    </tr>
+                `;
+            });
+
+            tableBody.innerHTML = tableRows;
+        }
+
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            renderStats();
+            renderScoreDistributionChart();
+            renderVariantTable();
+        };
+
+    </script>
+</head>
+<body class="bg-background font-sans min-h-screen">
+
+    <div class="p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+                COJORY Pipeline V2 Dashboard
+            </h1>
+            <p class="text-lg text-gray-500 mt-2">
+                Real-time summary of sequence alignment and variant matching results (Part 4)
+            </p>
+        </header>
+
+        <!-- Stats Grid -->
+        <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <!-- Stats cards will be injected here -->
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Chart Panel: Alignment Score Distribution -->
+            <div class="lg:col-span-2 card bg-white p-6 rounded-xl border border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 20h18"/>
+                    </svg>
+                    Raw Alignment Score Distribution
+                </h2>
+                <div id="score-chart-container" class="h-80">
+                    <p class="text-sm text-gray-500 mb-4">Count of sequences falling into specific raw alignment score ranges.</p>
+                    <div id="score-chart" class="h-full">
+                        <!-- Chart will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Panel: Top Variant Matches -->
+            <div class="lg:col-span-1 card bg-white p-6 rounded-xl border border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3 .895 3 2s-1.343 2-3 2 3 .895 3 2-1.343 2-3 2m0-8v8m0-8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Top Variant Matches (UID)
+                </h2>
+                <p class="text-sm text-gray-500 mb-4">Most frequently matched variant identifiers.</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rank</th>
+                                <th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variant UID</th>
+                                <th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Matches</th>
+                                <th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
+                                <th class="p-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="variant-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Table rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Placeholder for Interactive Tree/Details (like the ipytree mentioned) -->
+        <div class="mt-8 card bg-white p-6 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-2 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Phylogenetic/Hierarchical View Placeholder
+            </h2>
+            <p class="text-sm text-gray-500">
+                This area is typically used for interactive visualizations, like the phylogenetic trees or hierarchical groupings implied by the use of `ipytree` in the original pipeline.
+                It would require a dedicated library (like D3.js or a custom visualization component) to render the full tree structure and sequence relationships.
+            </p>
+            <div class="h-48 bg-gray-50 border border-dashed border-gray-300 rounded-lg mt-4 flex items-center justify-center">
+                <p class="text-gray-400">Visualization Area (Tree Structure, Dendrogram, or Heatmap)</p>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
